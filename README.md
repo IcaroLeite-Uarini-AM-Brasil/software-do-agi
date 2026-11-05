@@ -4,6 +4,10 @@ Este é um protótipo executável da camada de captura e busca vetorial. O colet
 
 O `VectorStoreEngine` recebe embeddings produzidos externamente e oferece busca por cosseno em memória. Ele não chama um modelo nem gera embeddings. A matriz normalizada é armazenada em cache e invalidada quando um documento é adicionado.
 
+## Camada H (M60–M79)
+
+Veja o [catálogo da Camada H](docs/camada-h.md) para a topologia proposta, o estado de implementação e os limites dos protótipos. M60, M65, M70 e M75 têm código neste repositório; os demais módulos permanecem planejados.
+
 ## Testes
 
 ```sh
@@ -12,4 +16,4 @@ python -m pip install -r python/requirements.txt
 python -m unittest discover -s python -p 'test_*.py'
 ```
 
-Não há ainda transporte IPC entre Rust e Python, persistência, treinamento contínuo, extração semântica, validação de permissões de conteúdo ou benchmark de produção. Não interprete este protótipo como uma AGI ou como prova de ingestão em escala.
+Ainda não há transporte IPC entre Rust e Python, persistência, treinamento contínuo, extração semântica, validação de permissões de conteúdo ou benchmark de produção. Não interprete este protótipo como uma AGI ou como prova de ingestão em escala.

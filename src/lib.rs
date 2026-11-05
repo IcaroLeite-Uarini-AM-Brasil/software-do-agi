@@ -7,8 +7,9 @@ use futures_util::{stream, StreamExt};
 use reqwest::{Client, StatusCode};
 use url::Url;
 
-/// A downloaded document. Content remains bytes so non-UTF-8 sources are not
-/// silently corrupted; decoding and content-type policy belong to a later stage.
+/// Um documento baixado. O conteúdo permanece em bytes para evitar corrupção
+/// silenciosa de fontes que não estejam em UTF-8; a decodificação e a política
+/// de tipo de conteúdo serão tratadas em uma etapa posterior.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawDocument {
     pub source_url: String,
@@ -16,8 +17,8 @@ pub struct RawDocument {
     pub fetched_at_timestamp: u64,
 }
 
-/// Explicit resource limits and the exact HTTPS hosts this collector may fetch.
-/// Host matching is exact; subdomains must be listed separately.
+/// Limites explícitos de recursos e os hosts HTTPS exatos que o coletor pode
+/// acessar. A correspondência de host é exata; subdomínios devem ser listados separadamente.
 #[derive(Debug, Clone)]
 pub struct HarvesterConfig {
     pub allowed_hosts: HashSet<String>,
@@ -42,15 +43,15 @@ pub enum HarvestError {
 impl fmt::Display for HarvestError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidConfiguration(message) => write!(f, "invalid harvester configuration: {message}"),
-            Self::InvalidUrl => write!(f, "invalid or unsupported URL (HTTPS required)"),
-            Self::HostNotAllowed => write!(f, "URL host is not in the configured allowlist"),
-            Self::RequestFailed(message) => write!(f, "HTTP request failed: {message}"),
-            Self::HttpStatus(code) => write!(f, "source returned HTTP status {code}"),
-            Self::ResponseTooLarge => write!(f, "response exceeds configured byte limit"),
-            Self::ClockError => write!(f, "system clock is before UNIX epoch"),
+            Self::InvalidConfiguration(message) => write!(f, "configuração inválida do coletor: {message}"),
+            Self::InvalidUrl => write!(f, "URL inválida ou não suportada (HTTPS obrigatório)"),
+            Self::HostNotAllowed => write!(f, "o host da URL não está na lista de permissões configurada"),
+            Self::RequestFailed(message) => write!(f, "falha na requisição HTTP: {message}"),
+            Self::HttpStatus(code) => write!(f, "a fonte retornou o status HTTP {code}"),
+            Self::ResponseTooLarge => write!(f, "a resposta excede o limite de bytes configurado"),
+            Self::ClockError => write!(f, "o relógio do sistema está antes da época UNIX"),
             Self::TooManySources { supplied, limit } => {
-                write!(f, "batch has {supplied} sources; configured limit is {limit}")
+                write!(f, "o lote contém {supplied} fontes; o limite configurado é {limit}")
             }
         }
     }
@@ -66,19 +67,19 @@ pub struct AsyncHarvester {
 impl AsyncHarvester {
     pub fn new(mut config: HarvesterConfig) -> Result<Self, HarvestError> {
         if config.max_concurrency == 0 {
-            return Err(HarvestError::InvalidConfiguration("max_concurrency must be greater than zero"));
+            return Err(HarvestError::InvalidConfiguration("max_concurrency deve ser maior que zero"));
         }
         if config.max_sources_per_batch == 0 {
-            return Err(HarvestError::InvalidConfiguration("max_sources_per_batch must be greater than zero"));
+            return Err(HarvestError::InvalidConfiguration("max_sources_per_batch deve ser maior que zero"));
         }
         if config.max_response_bytes == 0 {
-            return Err(HarvestError::InvalidConfiguration("max_response_bytes must be greater than zero"));
+            return Err(HarvestError::InvalidConfiguration("max_response_bytes deve ser maior que zero"));
         }
         if config.request_timeout.is_zero() {
-            return Err(HarvestError::InvalidConfiguration("request_timeout must be greater than zero"));
+            return Err(HarvestError::InvalidConfiguration("request_timeout deve ser maior que zero"));
         }
         if config.allowed_hosts.is_empty() {
-            return Err(HarvestError::InvalidConfiguration("allowed_hosts must not be empty"));
+            return Err(HarvestError::InvalidConfiguration("allowed_hosts não pode estar vazio"));
         }
 
         config.allowed_hosts = config
@@ -88,11 +89,11 @@ impl AsyncHarvester {
             .filter(|host| !host.is_empty())
             .collect();
         if config.allowed_hosts.is_empty() {
-            return Err(HarvestError::InvalidConfiguration("allowed_hosts must contain a hostname"));
+            return Err(HarvestError::InvalidConfiguration("allowed_hosts deve conter um nome de host"));
         }
 
-        // Do not follow redirects: the redirect target would otherwise need its
-        // own allowlist validation before a request is made.
+        // Não seguir redirecionamentos: o destino precisaria ser validado na
+        // lista de permissões antes que uma nova requisição fosse feita.
         let client = Client::builder()
             .timeout(config.request_timeout)
             .redirect(reqwest::redirect::Policy::none())
@@ -103,9 +104,9 @@ impl AsyncHarvester {
         Ok(Self { client, config })
     }
 
-    /// Fetch only the URLs explicitly supplied by the caller. This is not a
-    /// crawler: it does not discover links or expand the source list.
-    /// Concurrent requests and batch size are bounded by configuration.
+    /// Busca somente as URLs fornecidas explicitamente pelo chamador. Isto não
+    /// é um rastreador: links não são descobertos e a lista de fontes não é ampliada.
+    /// A concorrência e o tamanho do lote são limitados pela configuração.
     pub async fn fetch_many(&self, urls: &[String]) -> Result<Vec<Result<RawDocument, HarvestError>>, HarvestError> {
         if urls.len() > self.config.max_sources_per_batch {
             return Err(HarvestError::TooManySources {
@@ -121,7 +122,7 @@ impl AsyncHarvester {
         .collect::<Vec<_>>()
         .await;
 
-        // Preserve caller order even though network operations are concurrent.
+        // Preserva a ordem fornecida pelo chamador, embora as operações de rede sejam concorrentes.
         results.sort_unstable_by_key(|(index, _)| *index);
         Ok(results.into_iter().map(|(_, result)| result).collect())
     }
@@ -189,7 +190,7 @@ mod tests {
             max_response_bytes: 1024,
             request_timeout: Duration::from_secs(2),
         };
-        AsyncHarvester::new(config).expect("valid test config")
+        AsyncHarvester::new(config).expect("configuração de teste válida")
     }
 
     #[test]
@@ -209,15 +210,14 @@ mod tests {
 
     #[test]
     fn rejects_zero_concurrency() {
-        let mut config = HarvesterConfig {
+        let config = HarvesterConfig {
             allowed_hosts: ["example.org".to_owned()].into_iter().collect(),
             max_concurrency: 0,
             max_sources_per_batch: 4,
             max_response_bytes: 1024,
             request_timeout: Duration::from_secs(2),
         };
-        assert!(matches!(AsyncHarvester::new(config.clone()), Err(HarvestError::InvalidConfiguration(_))));
-        config.max_concurrency = 1;
+        assert!(matches!(AsyncHarvester::new(config), Err(HarvestError::InvalidConfiguration(_))));
     }
 
     impl AsyncHarvester {

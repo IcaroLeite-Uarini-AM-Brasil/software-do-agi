@@ -1,3 +1,5 @@
+pub mod modules;
+
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
@@ -122,7 +124,6 @@ impl AsyncHarvester {
         .collect::<Vec<_>>()
         .await;
 
-        // Preserva a ordem fornecida pelo chamador, embora as operações de rede sejam concorrentes.
         results.sort_unstable_by_key(|(index, _)| *index);
         Ok(results.into_iter().map(|(_, result)| result).collect())
     }
